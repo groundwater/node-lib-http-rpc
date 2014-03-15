@@ -10,5 +10,9 @@
   "license": "MIT",
   "devDependencies": {
     "tap": "^0.4.8"
+  },
+  "dependencies": {
+    "routes-router": "^1.5.4",
+    "concat-stream": "^1.4.4"
   }
 }
