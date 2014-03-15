@@ -1,5 +1,6 @@
-var http = require('http');
-var url  = require('url');
+var http   = require('http');
+var url    = require('url');
+var assert = require('assert');
 
 var Router = require('routes-router');
 var Cat    = require('concat-stream');
@@ -75,12 +76,13 @@ RPC.prototype.getClient = function (host, port) {
   Object.keys(this.iface).forEach(function (method) {
     var route = iface[method].route;
     out[method] = function (opts, body, callback) {
+      assert.equal(typeof callback, 'function');
 
       if (opts) Object.keys(opts).forEach(function (key) {
         var val = opts[key];
         route = route.replace(':' + key, val);
       });
-      
+
       var opts = {
         host   : host,
         port   : port,
