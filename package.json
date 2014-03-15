@@ -1,0 +1,14 @@
+{
+  "name": "lib-http-rpc",
+  "version": "0.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "tap test"
+  },
+  "author": "Jacob Groundwater <groundwater@gmail.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "tap": "^0.4.8"
+  }
+}
