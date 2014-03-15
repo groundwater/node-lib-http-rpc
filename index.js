@@ -42,9 +42,9 @@ RPC.prototype.getRouter = function (handlers) {
 
     var handler = handlers[name];
 
-    function handle(req, res) {
+    function handle(req, res, opts) {
       ObjectFromStream(req, function (err, obj) {
-        handler(null, obj, function (err, data) {
+        handler(opts, obj, function (err, data) {
           if (err) {
             res.statusCode = 500;
 
@@ -76,6 +76,11 @@ RPC.prototype.getClient = function (host, port) {
     var route = iface[method].route;
     out[method] = function (opts, body, callback) {
 
+      if (opts) Object.keys(opts).forEach(function (key) {
+        var val = opts[key];
+        route = route.replace(':' + key, val);
+      });
+      
       var opts = {
         host   : host,
         port   : port,
