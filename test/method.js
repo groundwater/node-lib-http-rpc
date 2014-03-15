@@ -3,11 +3,6 @@ var assert = require('assert');
 
 var RPC    = require('../index.js');
 
-function User() {
-  this.name = null;
-  this.age  = 0;
-}
-
 var iface  = {
   testGET  : {
     method : 'GET',
@@ -22,7 +17,6 @@ var iface  = {
 function Router(){}
 
 Router.prototype.testGET = function GET(opt, body, done) {
-  console.log('GET')
   done(null, 'GET');
 };
 
@@ -39,7 +33,6 @@ http.createServer(router).listen(8080);
 
 client.testGET(null, null, function (err, data) {
   assert(!err);
-  console.log('ASSERT',data)
   assert.equal(data, 'GET');
   client.testPOST(null, null, function (err, data) {
     assert(!err);

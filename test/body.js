@@ -3,11 +3,6 @@ var assert = require('assert');
 
 var RPC    = require('../index.js');
 
-function User() {
-  this.name = null;
-  this.age  = 0;
-}
-
 var iface  = {
   push : {
     method : 'POST',

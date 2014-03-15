@@ -5,19 +5,24 @@ var Router = require('routes-router');
 var Cat    = require('concat-stream');
 
 function ObjectFromStream(req, callback) {
-  req.pipe(Cat(function (json) {
+  req.pipe(Cat({encoding: 'string'}, function (json) {
+
+    if (!json) return callback(null, null);
+
+    var obj, err;
     try {
-      var obj = JSON.parse(json);
-      callback(null, obj);
+      obj = JSON.parse(json);
     } catch(e) {
-      callback(e, null);
+      err = e;
     }
+
+    callback(err, obj);
   }));
 }
 
 function ObjectToStream(obj, stream) {
-  var x = JSON.stringify(obj);
-  stream.write(x);
+  if (obj)
+    stream.write(JSON.stringify(obj));
   stream.end();
 }
 
@@ -40,7 +45,13 @@ RPC.prototype.getRouter = function (handlers) {
     function handle(req, res) {
       ObjectFromStream(req, function (err, obj) {
         handler(null, obj, function (err, data) {
-          ObjectToStream(data, res);
+          if (err) {
+            res.statusCode = 500;
+
+            ObjectToStream(err, res);
+          } else {
+            ObjectToStream(data, res);
+          }
         });
       });
     };
@@ -62,33 +73,28 @@ RPC.prototype.getClient = function (host, port) {
   var iface = this.iface;
 
   Object.keys(this.iface).forEach(function (method) {
-    var route = this.iface[method].route;
+    var route = iface[method].route;
     out[method] = function (opts, body, callback) {
+
       var opts = {
         host   : host,
         port   : port,
         path   : route,
         method : iface[method].method
       };
-      var req = http.request(opts, function (res) {
-        var buf = [];
-        res.on('data', function (chunk) {
-          buf.push(chunk);
+
+      function onResponse(res) {
+        var isErr = res.statusCode >= 400;
+        ObjectFromStream(res, function (err, obj) {
+          if (err)        callback(err, obj);
+          else if (isErr) callback(obj, null);
+          else            callback(null, obj);
         });
-        res.on('end', function () {
-          var json;
-          try {
-            json = JSON.parse(buf.join(''));
-          } catch(e) {
-            json = null;
-          }
-          callback(null, json);
-        });
-      })
-      if (body) req.write(JSON.stringify(body));
-      req.end();
+      }
+
+      ObjectToStream(body, http.request(opts, onResponse));
     }
-  }, this);
+  });
 
   return out;
 };
