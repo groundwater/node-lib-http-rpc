@@ -57,7 +57,15 @@ RPC.prototype.getRouter = function (handlers) {
         return;
       }
 
-      ObjectFromStream(req, function (err, obj) {
+      var type = iface[name].accepts || 'object';
+
+      if (type === 'stream') {
+        go(null, req);
+      } else {
+        ObjectFromStream(req, go);
+      }
+
+      function go(err, obj) {
         handler(opts, obj, function (err, data) {
           if (err) {
             res.statusCode = 500;
@@ -67,7 +75,8 @@ RPC.prototype.getRouter = function (handlers) {
             ObjectToStream(data, res);
           }
         });
-      });
+      }
+
     };
 
     if (!routes[route]) routes[route] = {};
@@ -114,17 +123,26 @@ RPC.prototype.getClient = function (host, port) {
         method : iface[method].method
       };
 
+      var returns = iface[method].returns || 'object';
+
       function onResponse(res) {
         var code  = res.statusCode;
         var isErr = code >= 400;
-        ObjectFromStream(res, function (err, obj) {
-          if (err)        callback(err, obj);
+
+        function go(err, obj) {
+          if (err)           callback(err, obj);
           else if (isErr) {
             if (code == 404) callback({code: 'METHOD_NOT_FOUND'});
             else             callback(obj, null);
           }
-          else            callback(null, obj);
-        });
+          else               callback(null, obj);
+        }
+
+        if (returns == 'stream')
+          go(null, res);
+        else
+          ObjectFromStream(res, go);
+
       }
 
       ObjectToStream(body, http.request(req_opts, onResponse));
