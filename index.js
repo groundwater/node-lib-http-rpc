@@ -1,5 +1,5 @@
 var http   = require('http');
-var url    = require('url');
+var Url    = require('url');
 var assert = require('assert');
 
 var Router = require('routes-router');
@@ -44,6 +44,10 @@ RPC.prototype.getRouter = function (handlers) {
     var handler = handlers[name];
 
     function handle(req, res, opts) {
+      var url = Url.parse(req.url, true);
+      Object.keys(url.query).forEach(function (key) {
+        opts[key] = url.query[key];
+      });
 
       // if there is no handler, return a 404
       if (!handler) {
@@ -83,16 +87,27 @@ RPC.prototype.getClient = function (host, port) {
   var iface = this.iface;
 
   Object.keys(this.iface).forEach(function (method) {
-    var route = iface[method].route;
+    var route   = iface[method].route;
+    var options = iface[method].options || {};
+
     out[method] = function (opts, body, callback) {
       assert.equal(typeof callback, 'function');
+
+      var query = [];
+      Object.keys(options).forEach(function (key) {
+        var opt = opts[key] ? opts[key] : options[key];
+        query.push(key + '=' + opt);
+        delete opts[key];
+      });
 
       if (opts) Object.keys(opts).forEach(function (key) {
         var val = opts[key];
         route = route.replace(':' + key, val);
       });
 
-      var opts = {
+      route = route + '?' + query.join('&');
+
+      var req_opts = {
         host   : host,
         port   : port,
         path   : route,
@@ -112,7 +127,7 @@ RPC.prototype.getClient = function (host, port) {
         });
       }
 
-      ObjectToStream(body, http.request(opts, onResponse));
+      ObjectToStream(body, http.request(req_opts, onResponse));
     }
   });
 
