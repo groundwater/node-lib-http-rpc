@@ -10,6 +10,16 @@ var iface  = {
     route   : '/test',
     accepts : 'stream',
     returns : 'stream'
+  },
+  testAccepts: {
+    method : 'GET',
+    route  : '/test/accepts',
+    accepts: 'stream'
+  },
+  testReturns: {
+    method : 'GET',
+    route  : '/test/returns',
+    returns: 'stream'
   }
 };
 
@@ -17,6 +27,13 @@ var routes = {
   test: function (opts, body, done) {
     assert(body instanceof stream.Readable);
     done(null);
+  },
+  testAccepts: function (opts, body, done) {
+    assert(body instanceof stream.Readable);
+    done(null, {a: true});
+  },
+  testReturns: function (opts, body, done) {
+    done();
   }
 };
 
@@ -29,8 +46,14 @@ var server = http.createServer(router).listen(8080);
 
 client.test(null, null, function (err, data) {
   assert(data instanceof stream.Readable);
-  server.close();
-
   data.pipe(process.stdout);
-  console.log('okay');
+  client.testAccepts(null, null, function (err, data) {
+    assert(data.a);
+    client.testReturns(null, null, function (err, data) {
+      assert(data instanceof stream.Readable);
+      data.pipe(process.stdout);
+      server.close();
+      console.log('ok');
+    })
+  });
 });
