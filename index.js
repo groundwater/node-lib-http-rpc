@@ -44,6 +44,15 @@ RPC.prototype.getRouter = function (handlers) {
     var handler = handlers[name];
 
     function handle(req, res, opts) {
+
+      // if there is no handler, return a 404
+      if (!handler) {
+        res.statusCode = 404;
+        res.end();
+
+        return;
+      }
+
       ObjectFromStream(req, function (err, obj) {
         handler(opts, obj, function (err, data) {
           if (err) {
@@ -91,10 +100,14 @@ RPC.prototype.getClient = function (host, port) {
       };
 
       function onResponse(res) {
-        var isErr = res.statusCode >= 400;
+        var code  = res.statusCode;
+        var isErr = code >= 400;
         ObjectFromStream(res, function (err, obj) {
           if (err)        callback(err, obj);
-          else if (isErr) callback(obj, null);
+          else if (isErr) {
+            if (code == 404) callback({code: 'METHOD_NOT_FOUND'});
+            else             callback(obj, null);
+          }
           else            callback(null, obj);
         });
       }
