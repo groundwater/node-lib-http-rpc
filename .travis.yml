@@ -4,5 +4,3 @@ node_js:
   - "0.10"
 notifications:
   email: false
-  irc:
-    - "chat.freenode.net#node-os"
