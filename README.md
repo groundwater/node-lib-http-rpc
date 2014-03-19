@@ -13,13 +13,15 @@ npm install --save lib-http-rpc
 
 ### Common
 
+Specify a common API between the client and server.
+
 ```javascript
 var RPC = require('lib-http-rpc');
 
 var api = {
   getUser: {
     method : 'GET',
-    route  : '/user'
+    route  : '/user/:name'
   }
 };
 
@@ -28,19 +30,25 @@ var rpc = new RPC(iface);
 
 ### Server
 
+Generate a router based on the shared interface.
+
 ```javascript
+// create handlers for each method in the API
 var handlers = {
   getUser : function (opts, body, done) {
     if (!opts.name) done(new Error('Please Specify a name'))
-    else            done(null, {name: 'bob', age: 12});
+    else            done(null, 'bob');
   }
 };
 
+// generate a router that calls each handler, based on the route
 var router = rpc.getRouter(handlers);
 require('http').createServer(router).listen(8080);
 ```
 
 ### Client
+
+Generate a client based on the shared interface.
 
 ```javascript
 var client = rpc.createClient('localhost', 8080);
@@ -50,3 +58,36 @@ client.getUser({name: 'bob'}, null, function (err, user) {
   else     console.log('Got User', user);
 });
 ```
+
+## Advanced
+
+### http query string
+
+```javascript
+var api = {
+  findUser: {
+    method: 'GET',
+    route: '/users/:query',
+    options: {
+      limit: 100,
+      order: 'desc'
+    }
+  }
+};
+```
+
+*client*
+
+```javascript
+client.findUser({query: 'joe', limit: 200}, null, function (err, res){
+  console.log('Found', res);
+})
+```
+
+This will generate the url:
+
+```
+http://SERVER/users/joe?limit=200
+```
+
+The server will receive the default options always.
