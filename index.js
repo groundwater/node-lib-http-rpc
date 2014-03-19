@@ -66,15 +66,20 @@ RPC.prototype.getRouter = function (handlers) {
       }
 
       function go(err, obj) {
-        handler.call(handlers, opts, obj, function (err, data) {
-          if (err) {
-            res.statusCode = 500;
+        try {
+          handler.call(handlers, opts, obj, function (err, data) {
+            if (err) {
+              res.statusCode = 500;
 
-            ObjectToStream(err, res);
-          } else {
-            ObjectToStream(data, res);
-          }
-        });
+              ObjectToStream(err, res);
+            } else {
+              ObjectToStream(data, res);
+            }
+          });
+        } catch (e) {
+          res.statusCode = 500;
+          res.end('{"code": "REMOTE_EXCEPTION"}');
+        }
       }
 
     };
