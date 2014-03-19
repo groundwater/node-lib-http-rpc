@@ -1,7 +1,7 @@
 {
   "name": "lib-http-rpc",
   "version": "0.0.5",
-  "description": "",
+  "description": "define client/server http rpc",
   "main": "index.js",
   "scripts": {
     "test": "tap test"
@@ -14,5 +14,16 @@
   "dependencies": {
     "routes-router": "^1.5.4",
     "concat-stream": "^1.4.4"
-  }
+  },
+  "directories": {
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/groundwater/node-lib-http-rpc.git"
+  },
+  "bugs": {
+    "url": "https://github.com/groundwater/node-lib-http-rpc/issues"
+  },
+  "homepage": "https://github.com/groundwater/node-lib-http-rpc"
 }
