@@ -66,7 +66,7 @@ RPC.prototype.getRouter = function (handlers) {
       }
 
       function go(err, obj) {
-        handler(opts, obj, function (err, data) {
+        handler.call(handlers, opts, obj, function (err, data) {
           if (err) {
             res.statusCode = 500;
 
