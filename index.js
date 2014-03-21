@@ -1,6 +1,7 @@
 var http   = require('http');
 var Url    = require('url');
 var assert = require('assert');
+var util   = require('util');
 
 var Router = require('routes-router');
 var Cat    = require('concat-stream');
@@ -96,62 +97,116 @@ RPC.prototype.getRouter = function (handlers) {
   return router;
 };
 
+function Client(port, host) {
+  this._port  = port || 80;
+  this._host  = host || 'localhost';
+  this._faces = {};
+}
+
+Client.prototype.add = function add(method, face) {
+  this._faces[method] = face;
+};
+
+Client.prototype.format = function format(method, opts, body) {
+  var out     = {};
+
+  var face    = this._faces[method];
+  var options = face.options || {};
+  var route   = face.route;
+
+  // find query arguments
+  var query = [];
+  Object.keys(options).forEach(function (key) {
+    var opt = opts[key] ? opts[key] : options[key];
+    query.push(key + '=' + opt);
+    delete opts[key];
+  });
+
+  // substitute route parameters
+  if (opts) Object.keys(opts).forEach(function (key) {
+    var val = opts[key];
+    route = route.replace(':' + key, val);
+  });
+
+  // add query args, if they exist
+  if (query.length > 0) route = route + '?' + query.join('&');
+
+  // format request options
+  out.host   = this._host;
+  out.port   = this._port;
+  out.path   = route;
+  out.method = face.method;
+
+  return out;
+};
+
+function ErrorFromCode(code) {
+  switch (code) {
+  case 404:
+    return {code: 'METHOD_NOT_FOUND'};
+  case 500:
+    return {code: 'REMOTE_EXCEPTION'};
+  }
+}
+
+Client.prototype.remote = function (opts, body, callback) {
+  var req = http.request(opts, onResult);
+
+  req.on('error', function (err) {
+    return callback(err);
+  });
+
+  ObjectToStream(body, req);
+
+  function onResult(res) {
+    var err = ErrorFromCode(res.statusCode);
+
+    callback(err, res);
+  }
+};
+
+function DumpToError(err, res, callback) {
+  ObjectFromStream(res, function () {
+    callback(err);
+  });
+}
+
+function makeMethod(method, face, client) {
+  var route   = face.route;
+  var options = face.options || {};
+  var returns = face.returns;
+
+  client.add(method, face);
+
+  return Handler;
+
+  function Handler(opts, body, callback) {
+    assert.equal(typeof callback, 'function');
+
+    var out = client.format(method, opts);
+
+    client.remote(out, body, function (err, res) {
+      if (err) return DumpToError(err, res, callback);
+
+      switch (returns) {
+      case 'stream':
+        callback(null, res);
+        break;
+      default:
+        ObjectFromStream(res, callback);
+      }
+    });
+  }
+}
+
 RPC.prototype.getClient = function (host, port) {
   var out   = {};
   var iface = this.iface;
 
-  Object.keys(this.iface).forEach(function (method) {
-    var route   = iface[method].route;
-    var options = iface[method].options || {};
+  var client = new Client(8080, 'localhost');
 
-    out[method] = function (opts, body, callback) {
-      assert.equal(typeof callback, 'function');
-
-      var query = [];
-      Object.keys(options).forEach(function (key) {
-        var opt = opts[key] ? opts[key] : options[key];
-        query.push(key + '=' + opt);
-        delete opts[key];
-      });
-
-      if (opts) Object.keys(opts).forEach(function (key) {
-        var val = opts[key];
-        route = route.replace(':' + key, val);
-      });
-
-      route = route + '?' + query.join('&');
-
-      var req_opts = {
-        host   : host,
-        port   : port,
-        path   : route,
-        method : iface[method].method
-      };
-
-      var returns = iface[method].returns || 'object';
-
-      function onResponse(res) {
-        var code  = res.statusCode;
-        var isErr = code >= 400;
-
-        function go(err, obj) {
-          if (err)           callback(err, obj);
-          else if (isErr) {
-            if (code == 404) callback({code: 'METHOD_NOT_FOUND'});
-            else             callback(obj, null);
-          }
-          else               callback(null, obj);
-        }
-
-        if (returns == 'stream')
-          go(null, res);
-        else
-          ObjectFromStream(res, go);
-
-      }
-
-      ObjectToStream(body, http.request(req_opts, onResponse));
-    }
+  Object.keys(iface).forEach(function (method) {
+    out[method] = makeMethod(method, iface[method], client);
   });
 
   return out;

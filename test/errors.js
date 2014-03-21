@@ -28,7 +28,7 @@ function test() {
     server.close();
 
     assert.notStrictEqual(err, null);
-    assert.strictEqual(data, null);
+    assert.equal(data, null);
 
     console.log('ok');
   });
