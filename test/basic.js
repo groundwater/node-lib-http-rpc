@@ -1,43 +1,36 @@
-var http   = require('http');
-var assert = require('assert');
+var stream  = require('stream');
+var test    = require('tap').test;
+var liquify = require('../streamers.js').liquify;
+var solidify= require('../streamers.js').solidify;
 
-var RPC    = require('../index.js');
-
-var iface  = {
-  getUser : {
-    method : 'GET',
-    route  : '/user'
-  },
-  eatUser : {
-    route: '/eat',
-    method: 'GET'
+var ifac = {
+  home: {
+    method: 'GET',
+    route: '/'
   }
 };
 
-function Router(){}
+var RPC = require('../index.js')();
+var rpc = RPC.NewFromInterface(ifac);
 
-Router.prototype.getUser = function (opt, body, done) {
-  done(null, 'okay');
-};
+test("home", function(t){
+  var client = rpc.getClient(8080, 'localhost');
+  t.ok(client, "should return a client");
+  t.equal(typeof client, 'object', 'should be an object');
+  t.equal(typeof client.home, 'function', 'should have a home method');
+  t.end();
+});
 
-Router.prototype.eatUser = function (opt, body, done) {
-  done(null, 'noway');
-}
+test("home method", function(t){
+  var client = rpc.getClient(8080, 'localhost');
 
-var rpc = new RPC(iface);
+  var socket = client.home();
 
-var client = rpc.getClient('localhost', 8080);
-var router = rpc.getRouter(new Router());
-
-http.createServer(router).listen(8080);
-
-client.getUser({id: 'bob'}, null, function (err, data) {
-  assert(!err);
-  assert.equal(data, 'okay');
-  client.eatUser(null, null, function (err, data) {
-    assert(!err);
-    assert.equal(data, 'noway');
-    console.log('ok');
-    process.exit(0);
+  t.equal(typeof socket._write, 'function', "returns a writable stream");
+  liquify({a: 'A'}).pipe(socket).pipe(solidify()).json(function (err, obj){
+    t.ifError(err);
+    t.equal(obj.a, 'A', 'object should get piped through');
+    t.end();
   });
+
 });
