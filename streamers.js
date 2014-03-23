@@ -20,14 +20,13 @@ util.inherits(ObjectStream, stream.Writable);
 function ObjectStream(opts) {
   this.buffer = [];
   stream.Writable.call(this, opts);
-
 }
 
 ObjectStream.prototype.json = function (callback) {
   var buffer = this.buffer;
   this.on('finish', function CALLBACK_JSON() {
     try {
-      var _json = this.buffer.map(function (x) { return x.toString() }).join('');
+      var _json = buffer.map(function (x) { return x.toString() }).join('');
       callback(null, JSON.parse(_json));
     } catch (e) {
       callback(e);

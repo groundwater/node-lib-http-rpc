@@ -22,15 +22,24 @@ test("home", function(t){
 });
 
 test("home method", function(t){
+  t.plan(5);
+
   var client = rpc.getClient(8080, 'localhost');
 
-  var socket = client.home();
+  var socket;
 
+  socket = client.home();
   t.equal(typeof socket._write, 'function', "returns a writable stream");
+
   liquify({a: 'A'}).pipe(socket).pipe(solidify()).json(function (err, obj){
     t.ifError(err);
     t.equal(obj.a, 'A', 'object should get piped through');
-    t.end();
+  });
+
+  socket = client.home();
+  liquify({a: 'a'}).pipe(socket).pipe(solidify()).json(function (err, obj){
+    t.ifError(err);
+    t.equal(obj.a, 'a', 'object should get piped through');
   });
 
 });
