@@ -1,3 +1,5 @@
+"use strict";
+
 var util   = require('util');
 var stream = require('stream');
 
@@ -24,7 +26,7 @@ Request.prototype.__drain = function () {
     var x = this.buffer.shift();
     this.push(x);
   }
-}
+};
 
 Request.prototype._read = function _read(size) {
   this.__drain();
