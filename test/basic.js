@@ -1,7 +1,7 @@
 var stream  = require('stream');
 var test    = require('tap').test;
-var liquify = require('../streamers.js').liquify;
-var solidify= require('../streamers.js').solidify;
+var liquify = require('../liquify.js');
+var solidify= require('../solidify.js');
 
 var ifac = {
   home: {
