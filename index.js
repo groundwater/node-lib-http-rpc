@@ -1,39 +1,7 @@
 "use strict";
 
-var util   = require('util');
-var stream = require('stream');
-
-util.inherits(Request, stream.Duplex);
-function Request(opts) {
-  stream.Duplex.call(this, opts);
-
-  var self = this;
-
-  this.buffer = [];
-  this.on('finish', function () {
-    self.push(null);
-  });
-}
-
-Request.prototype._write = function _write(chunk, encoding, done) {
-  this.buffer.push(chunk);
-  this.__drain();
-  done();
-};
-
-Request.prototype.__drain = function () {
-  while (this.buffer.length > 0) {
-    var x = this.buffer.shift();
-    this.push(x);
-  }
-};
-
-Request.prototype._read = function _read(size) {
-  this.__drain();
-};
-
-function RPC() {
-
+function RPC($) {
+  this.$ = $;
 }
 
 RPC.prototype.getRoute = function getRouter(handlers) {
@@ -41,15 +9,17 @@ RPC.prototype.getRoute = function getRouter(handlers) {
 };
 
 RPC.prototype.getClient = function getClient(port, host) {
+  var $ = this.$;
+
   return {
     home: function() {
-      return new Request();
+      return $.NewRequest();
     }
   };
 };
 
 RPC.NewFromInterface = function NewFromInterface(api) {
-  return new RPC();
+  return new RPC(this);
 };
 
 function inject(deps) {
@@ -57,8 +27,13 @@ function inject(deps) {
 }
 
 function defaults() {
+  var Request = require('./request');
   var deps = {
-
+    NewRequest : {
+      value: function NewRequest(opts) {
+        return new Request(opts);
+      }
+    }
   };
   return inject(deps);
 }
