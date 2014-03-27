@@ -11,7 +11,7 @@ Solidify.prototype.json = function (callback) {
   var buffer = this.buffer;
   this.on('finish', function CALLBACK_JSON() {
     try {
-      var _json = buffer.map(function (x) { return x.toString() }).join('');
+      var _json = buffer.join('');
       callback(null, JSON.parse(_json));
     } catch (e) {
       callback(e);
@@ -20,7 +20,7 @@ Solidify.prototype.json = function (callback) {
 };
 
 Solidify.prototype._write = function (chunk, encoding, next) {
-  this.buffer.push(chunk);
+  this.buffer.push(chunk.toString());
   next();
 };
 
