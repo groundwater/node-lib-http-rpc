@@ -16,44 +16,50 @@ RPC.Error = function RpcError(code, message) {
 };
 util.inherits(RPC.Error, Error);
 
+function router(rpc, handlers, req, res) {
+  var $ = rpc.$;
+  var api = rpc.api;
+
+  var request = api.handle(req.method, req.url);
+  var dom = domain.create();
+
+  dom.on('error', function (err) {
+    var statusCode = err.statusCode || 500;
+    res.statusCode = statusCode;
+    res.write(JSON.stringify(err));
+    res.end();
+  });
+
+  if (!request) {
+    res.statusCode = 404;
+    res.end();
+    return;
+  }
+
+  var handle = request.handle;
+  var params = request.params;
+  var query  = request.query;
+
+  var future = $.future();
+
+  future.setWritable(res);
+  future.setReadable(req);
+
+  res.setHeader('Transfer-Encoding', 'chunked');
+  res.setHeader("Content-Type", "application/json");
+
+  dom.run(function () {
+    handlers[handle](future, params, query);
+  });
+}
+
 RPC.prototype.getRouter = function getRouter(handlers) {
-  var $ = this.$;
-  var api = this.api;
+  var rpc = this;
 
-  return router;
+  return boundRouter;
 
-  function router(req, res) {
-    var request = api.handle(req.method, req.url);
-    var dom = domain.create();
-
-    dom.on('error', function (err) {
-      var statusCode = err.statusCode || 500;
-      res.statusCode = statusCode;
-      res.write(JSON.stringify(err));
-      res.end();
-    });
-
-    if (!request) {
-      res.statusCode = 404;
-      res.end();
-      return;
-    }
-
-    var handle = request.handle;
-    var params = request.params;
-    var query  = request.query;
-
-    var future = $.future();
-
-    future.setWritable(res);
-    future.setReadable(req);
-
-    res.setHeader('Transfer-Encoding', 'chunked');
-    res.setHeader("Content-Type", "application/json");
-
-    dom.run(function () {
-      handlers[handle](future, params, query);
-    });
+  function boundRouter(req, res) {
+    return rpc.$.router(rpc, handlers, req, res);
   }
 };
 
@@ -122,6 +128,9 @@ function defaults() {
     },
     populateApiFromInterface: {
       value: populateApiFromInterface
+    },
+    router: {
+      value: router
     }
   };
   return inject(deps);
