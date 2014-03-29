@@ -1,20 +1,43 @@
 "use strict";
 
+var util = require('util');
+var domain = require('domain');
+
 function RPC($) {
   this.$ = $;
   this.api = null;
   this.iface = null;
 }
 
+RPC.Error = function RpcError(code, message) {
+  Error.call(this, message);
+
+  this.statusCode = code;
+};
+util.inherits(RPC.Error, Error);
+
 RPC.prototype.getRouter = function getRouter(handlers) {
   var $ = this.$;
   var api = this.api;
-
 
   return router;
 
   function router(req, res) {
     var request = api.handle(req.method, req.url);
+    var dom = domain.create();
+
+    dom.on('error', function (err) {
+      var statusCode = err.statusCode || 500;
+      res.statusCode = statusCode;
+      res.write(JSON.stringify(err));
+      res.end();
+    });
+
+    if (!request) {
+      res.statusCode = 404;
+      res.end();
+      return;
+    }
 
     var handle = request.handle;
     var params = request.params;
@@ -28,7 +51,9 @@ RPC.prototype.getRouter = function getRouter(handlers) {
     res.setHeader('Transfer-Encoding', 'chunked');
     res.setHeader("Content-Type", "application/json");
 
-    handlers[handle](future, params, query, req, res);
+    dom.run(function () {
+      handlers[handle](future, params, query);
+    });
   }
 };
 
