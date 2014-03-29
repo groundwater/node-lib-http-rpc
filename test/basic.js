@@ -1,43 +1,43 @@
-var http   = require('http');
-var assert = require('assert');
+var http = require('http');
 
-var RPC    = require('../index.js');
+var stream  = require('stream');
+var test    = require('tap').test;
+var liquify = require('lib-stream-liquify');
+var solidify= require('lib-stream-solidify');
 
-var iface  = {
-  getUser : {
-    method : 'GET',
-    route  : '/user'
-  },
-  eatUser : {
-    route: '/eat',
-    method: 'GET'
+var iface = {
+  home: {
+    method: 'GET',
+    route: '/:name'
   }
 };
 
-function Router(){}
+var RPC = require('../index.js')();
+var rpc = RPC.NewFromInterface(iface);
 
-Router.prototype.getUser = function (opt, body, done) {
-  done(null, 'okay');
-};
+var router = rpc.getRouter({
+  home: function(stream, params, query) {
+    stream.pipe(stream);
+  }
+});
 
-Router.prototype.eatUser = function (opt, body, done) {
-  done(null, 'noway');
-}
+test("happy path", function (t) {
+  t.plan(2);
 
-var rpc = new RPC(iface);
+  var srvr = http.createServer(router);
+  var home = rpc.getClient(8080).home({name: 'bob'}, {});
+  var done = solidify();
+  var body = {
+    name       : 'Kim Berley',
+    location   : 'San Francisco',
+    occupation : 'Software Nerd',
+  };
 
-var client = rpc.getClient('localhost', 8080);
-var router = rpc.getRouter(new Router());
+  srvr.listen(8080);
 
-http.createServer(router).listen(8080);
-
-client.getUser({id: 'bob'}, null, function (err, data) {
-  assert(!err);
-  assert.equal(data, 'okay');
-  client.eatUser(null, null, function (err, data) {
-    assert(!err);
-    assert.equal(data, 'noway');
-    console.log('ok');
-    process.exit(0);
+  liquify(body).pipe(home).pipe(done).json(function (err, json) {
+    t.ifError(err);
+    t.deepEqual(json, body);
+    srvr.close();
   });
 });

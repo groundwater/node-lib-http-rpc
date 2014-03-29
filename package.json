@@ -4,16 +4,20 @@
   "description": "define client/server http rpc",
   "main": "index.js",
   "scripts": {
-    "test": "tap test"
+    "test": "jshint index.js && tap test"
   },
   "author": "Jacob Groundwater <groundwater@gmail.com>",
   "license": "MIT",
   "devDependencies": {
-    "tap": "^0.4.8"
+    "tap": "^0.4.8",
+    "routes-router": "^1.5.4",
+    "jshint": "^2.4.4"
   },
   "dependencies": {
-    "routes-router": "^1.5.4",
-    "concat-stream": "^1.4.4"
+    "lib-stream-future": "0.0.2",
+    "lib-stream-liquify": "0.0.0",
+    "lib-stream-solidify": "0.0.0",
+    "lib-http-api": "0.0.0"
   },
   "directories": {
     "test": "test"

@@ -1,215 +1,143 @@
-var http   = require('http');
-var Url    = require('url');
-var assert = require('assert');
-var util   = require('util');
+"use strict";
 
-var Router = require('routes-router');
-var Cat    = require('concat-stream');
+var util = require('util');
+var domain = require('domain');
 
-function ObjectFromStream(req, callback) {
-  req.pipe(Cat({encoding: 'string'}, function (json) {
-
-    if (!json) return callback(null, null);
-
-    var obj, err;
-    try {
-      obj = JSON.parse(json);
-    } catch(e) {
-      err = e;
-    }
-
-    callback(err, obj);
-  }));
+function RPC($) {
+  this.$ = $;
+  this.api = null;
+  this.iface = null;
 }
 
-function ObjectToStream(obj, stream) {
-  if (obj)
-    stream.write(JSON.stringify(obj));
-  stream.end();
+RPC.Error = function RpcError(code, message) {
+  Error.call(this, message);
+
+  this.statusCode = code;
+};
+util.inherits(RPC.Error, Error);
+
+function router(rpc, handlers, req, res) {
+  var $ = rpc.$;
+  var api = rpc.api;
+
+  var request = api.handle(req.method, req.url);
+  var dom = domain.create();
+
+  dom.on('error', function (err) {
+    var statusCode = err.statusCode || 500;
+    res.statusCode = statusCode;
+    res.write(JSON.stringify(err));
+    res.end();
+  });
+
+  if (!request) {
+    res.statusCode = 404;
+    res.end();
+    return;
+  }
+
+  var handle = request.handle;
+  var params = request.params;
+  var query  = request.query;
+
+  var future = $.future();
+
+  future.setWritable(res);
+  future.setReadable(req);
+
+  res.setHeader('Transfer-Encoding', 'chunked');
+  res.setHeader("Content-Type", "application/json");
+
+  dom.run(function () {
+    handlers[handle](future, params, query);
+  });
 }
 
-function RPC(iface) {
-  this.iface = iface;
-}
+RPC.prototype.getRouter = function getRouter(handlers) {
+  var rpc = this;
 
-RPC.prototype.getRouter = function (handlers) {
-  var iface  = this.iface;
+  return boundRouter;
 
-  var routes = {};
-  var router = Router();
+  function boundRouter(req, res) {
+    return rpc.$.router(rpc, handlers, req, res);
+  }
+};
 
-  Object.keys(iface).forEach(function (name) {
-    var method  = iface[name].method;
-    var route   = iface[name].route;
+RPC.prototype.getClient = function getClient(port, host) {
+  var $ = this.$;
+  var api = this.api;
 
-    var handler = handlers[name];
+  var client = {};
 
-    function handle(req, res, opts) {
-      var url = Url.parse(req.url, true);
-      Object.keys(url.query).forEach(function (key) {
-        opts[key] = url.query[key];
-      });
+  Object.keys(this.iface).forEach(function (key) {
+    client[key] = function (params, query) {
+      var opts = api.request(key, params, query);
 
-      // if there is no handler, return a 404
-      if (!handler) {
-        res.statusCode = 404;
-        res.end();
+      opts.host = host;
+      opts.port = port;
+      opts.headers = {
+        "Transfer-Encoding": "chunked",
+        "Content-Type": "application/json",
+      };
 
-        return;
-      }
+      var req = $.NewRequest(opts);
 
-      var type = iface[name].accepts || 'object';
-
-      if (type === 'stream') {
-        go(null, req);
-      } else {
-        ObjectFromStream(req, go);
-      }
-
-      function go(err, obj) {
-        try {
-          handler.call(handlers, opts, obj, function (err, data) {
-            if (err) {
-              res.statusCode = 500;
-
-              ObjectToStream(err, res);
-            } else {
-              ObjectToStream(data, res);
-            }
-          });
-        } catch (e) {
-          res.statusCode = 500;
-          res.end('{"code": "REMOTE_EXCEPTION"}');
-        }
-      }
-
+      return req;
     };
-
-    if (!routes[route]) routes[route] = {};
-
-    routes[route][method] = handle;
   });
 
-  Object.keys(routes).forEach(function (name){
-    router.addRoute(name, routes[name]);
-  });
-
-  return router;
+  return client;
 };
 
-function Client(port, host) {
-  this._port  = port || 80;
-  this._host  = host || 'localhost';
-  this._faces = {};
-}
-
-Client.prototype.add = function add(method, face) {
-  this._faces[method] = face;
+RPC.New = function NewRPC() {
+  return new RPC(this);
 };
 
-Client.prototype.format = function format(method, opts, body) {
-  var out     = {};
-
-  var face    = this._faces[method];
-  var options = face.options || {};
-  var route   = face.route;
-
-  // find query arguments
-  var query = [];
-  Object.keys(options).forEach(function (key) {
-    var opt = opts[key] ? opts[key] : options[key];
-    query.push(key + '=' + opt);
-    delete opts[key];
-  });
-
-  // substitute route parameters
-  if (opts) Object.keys(opts).forEach(function (key) {
-    var val = opts[key];
-    route = route.replace(':' + key, val);
-  });
-
-  // add query args, if they exist
-  if (query.length > 0) route = route + '?' + query.join('&');
-
-  // format request options
-  out.host   = this._host;
-  out.port   = this._port;
-  out.path   = route;
-  out.method = face.method;
-
-  return out;
-};
-
-function ErrorFromCode(code) {
-  switch (code) {
-  case 404:
-    return {code: 'METHOD_NOT_FOUND'};
-  case 500:
-    return {code: 'REMOTE_EXCEPTION'};
-  }
-}
-
-Client.prototype.remote = function (opts, body, callback) {
-  var req = http.request(opts, onResult);
-
-  req.on('error', function (err) {
-    return callback(err);
-  });
-
-  ObjectToStream(body, req);
-
-  function onResult(res) {
-    var err = ErrorFromCode(res.statusCode);
-
-    callback(err, res);
-  }
-};
-
-function DumpToError(err, res, callback) {
-  ObjectFromStream(res, function () {
-    callback(err);
+function populateApiFromInterface(api, iface) {
+  Object.keys(iface).forEach(function (key) {
+    api.add(key, iface[key]);
   });
 }
 
-function makeMethod(method, face, client) {
-  var route   = face.route;
-  var options = face.options || {};
-  var returns = face.returns;
+RPC.NewFromInterface = function NewFromInterface(iface) {
+  var rpc = this.New();
+  var api = this.API.New();
 
-  client.add(method, face);
+  rpc.api = api;
+  rpc.iface = iface;
 
-  return Handler;
+  this.populateApiFromInterface(api, iface);
 
-  function Handler(opts, body, callback) {
-    assert.equal(typeof callback, 'function');
-
-    var out = client.format(method, opts);
-
-    client.remote(out, body, function (err, res) {
-      if (err) return DumpToError(err, res, callback);
-
-      switch (returns) {
-      case 'stream':
-        callback(null, res);
-        break;
-      default:
-        ObjectFromStream(res, callback);
-      }
-    });
-  }
-}
-
-RPC.prototype.getClient = function (host, port) {
-  var out   = {};
-  var iface = this.iface;
-
-  var client = new Client(8080, 'localhost');
-
-  Object.keys(iface).forEach(function (method) {
-    out[method] = makeMethod(method, iface[method], client);
-  });
-
-  return out;
+  return rpc;
 };
 
-module.exports = RPC;
+function inject(deps) {
+  return Object.create(RPC, deps);
+}
+
+function defaults() {
+  var deps = {
+    NewRequest : {
+      value: require('./request.js')
+    },
+    future: {
+      value: require('lib-stream-future')
+    },
+    API : {
+      value: require('lib-http-api')()
+    },
+    populateApiFromInterface: {
+      value: populateApiFromInterface
+    },
+    router: {
+      value: router
+    }
+  };
+  return inject(deps);
+}
+
+module.exports = function INIT(deps) {
+  if (typeof deps === 'object') return inject(deps);
+  else if (deps === undefined)  return defaults();
+  else                          throw new Error('injection error');
+};
