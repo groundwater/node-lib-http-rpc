@@ -2,11 +2,14 @@
 
 function RPC($) {
   this.$ = $;
+  this.api = null;
+  this.iface = null;
 }
 
 RPC.prototype.getRouter = function getRouter(handlers) {
   var $ = this.$;
   var api = this.api;
+
 
   return router;
 
@@ -51,10 +54,24 @@ RPC.prototype.getClient = function getClient(port, host) {
   }
 };
 
-RPC.NewFromAPI = function NewFromInterface(api) {
-  var rpc =  new RPC(this);
+RPC.New = function NewRPC() {
+  return new RPC(this);
+}
+
+function populateApiFromInterface(api, iface) {
+  Object.keys(iface).forEach(function (key) {
+    api.add(key, iface[key]);
+  });
+}
+
+RPC.NewFromInterface = function NewFromInterface(iface) {
+  var rpc = this.New();
+  var api = this.API.New();
 
   rpc.api = api;
+  rpc.iface = iface;
+
+  this.populateApiFromInterface(api, iface);
 
   return rpc;
 };
@@ -70,6 +87,12 @@ function defaults() {
     },
     future: {
       value: require('lib-stream-future')
+    },
+    API : {
+      value: require('lib-http-api')()
+    },
+    populateApiFromInterface: {
+      value: populateApiFromInterface
     }
   };
   return inject(deps);

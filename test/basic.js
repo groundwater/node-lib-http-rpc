@@ -2,8 +2,8 @@ var http = require('http');
 
 var stream  = require('stream');
 var test    = require('tap').test;
-var liquify = require('../liquify.js');
-var solidify= require('../solidify.js');
+var liquify = require('lib-stream-liquify');
+var solidify= require('lib-stream-solidify');
 
 var iface = {
   home: {
@@ -13,13 +13,7 @@ var iface = {
 };
 
 var RPC = require('../index.js')();
-var API = require('lib-http-api')();
-
-var api = API.New(iface);
-
-api.add('home', iface.home);
-
-var rpc = RPC.NewFromAPI(api);
+var rpc = RPC.NewFromInterface(iface);
 
 var router = rpc.getRouter({
   home: function(stream, params, query) {
@@ -27,7 +21,7 @@ var router = rpc.getRouter({
   }
 });
 
-test("asdf", function (t) {
+test("happy path", function (t) {
   t.plan(2);
 
   var srvr = http.createServer(router);
