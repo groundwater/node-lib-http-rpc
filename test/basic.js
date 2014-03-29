@@ -1,45 +1,49 @@
+var http = require('http');
+
 var stream  = require('stream');
 var test    = require('tap').test;
 var liquify = require('../liquify.js');
 var solidify= require('../solidify.js');
 
-var ifac = {
+var iface = {
   home: {
     method: 'GET',
-    route: '/'
+    route: '/:name'
   }
 };
 
 var RPC = require('../index.js')();
-var rpc = RPC.NewFromInterface(ifac);
+var API = require('lib-http-api')();
 
-test("home", function(t){
-  var client = rpc.getClient(8080, 'localhost');
-  t.ok(client, "should return a client");
-  t.equal(typeof client, 'object', 'should be an object');
-  t.equal(typeof client.home, 'function', 'should have a home method');
-  t.end();
+var api = API.New(iface);
+
+api.add('home', iface.home);
+
+var rpc = RPC.NewFromAPI(api);
+
+var router = rpc.getRouter({
+  home: function(stream, params, query) {
+    stream.pipe(stream);
+  }
 });
 
-test("home method", function(t){
-  t.plan(5);
+test("asdf", function (t) {
+  t.plan(2);
 
-  var client = rpc.getClient(8080, 'localhost');
+  var srvr = http.createServer(router);
+  var home = rpc.getClient(8080).home({name: 'bob'}, {});
+  var done = solidify();
+  var body = {
+    name       : 'Kim Berley',
+    location   : 'San Francisco',
+    occupation : 'Software Nerd',
+  };
 
-  var socket;
+  srvr.listen(8080);
 
-  socket = client.home();
-  t.equal(typeof socket._write, 'function', "returns a writable stream");
-
-  liquify({a: 'A'}).pipe(socket).pipe(solidify()).json(function (err, obj){
+  liquify(body).pipe(home).pipe(done).json(function (err, json) {
     t.ifError(err);
-    t.equal(obj.a, 'A', 'object should get piped through');
+    t.deepEqual(json, body);
+    srvr.close();
   });
-
-  socket = client.home();
-  liquify({a: 'a'}).pipe(socket).pipe(solidify()).json(function (err, obj){
-    t.ifError(err);
-    t.equal(obj.a, 'a', 'object should get piped through');
-  });
-
 });

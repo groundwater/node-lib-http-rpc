@@ -4,22 +4,59 @@ function RPC($) {
   this.$ = $;
 }
 
-RPC.prototype.getRoute = function getRouter(handlers) {
+RPC.prototype.getRouter = function getRouter(handlers) {
+  var $ = this.$;
+  var api = this.api;
 
+  return router;
+
+  function router(req, res) {
+    var request = api.handle(req.method, req.url);
+
+    var handle = request.handle;
+    var params = request.params;
+    var query  = request.query;
+
+    var future = $.future();
+
+    future.setWritable(res);
+    future.setReadable(req);
+
+    res.setHeader('Transfer-Encoding', 'chunked');
+    res.setHeader("Content-Type", "application/json");
+
+    handlers[handle](future, params, query, req, res);
+  }
 };
 
 RPC.prototype.getClient = function getClient(port, host) {
   var $ = this.$;
+  var api = this.api;
 
   return {
-    home: function() {
-      return $.NewRequest();
+    home: function (params, query) {
+      var opts = api.request('home', params, query);
+
+      opts.host = host;
+      opts.port = port;
+      opts.headers = {
+        "Transfer-Encoding": "chunked",
+        "Content-Type": "application/json",
+      };
+
+      var req = $.NewRequest(opts);
+
+      return req;
     }
-  };
+  }
 };
 
-RPC.NewFromInterface = function NewFromInterface(api) {
-  return new RPC(this);
+RPC.NewFromAPI = function NewFromInterface(api) {
+  var rpc =  new RPC(this);
+
+  rpc.api = api;
+
+  return rpc;
 };
 
 function inject(deps) {
@@ -27,12 +64,12 @@ function inject(deps) {
 }
 
 function defaults() {
-  var Request = require('./request');
   var deps = {
     NewRequest : {
-      value: function NewRequest(opts) {
-        return new Request(opts);
-      }
+      value: require('./request.js')
+    },
+    future: {
+      value: require('lib-stream-future')
     }
   };
   return inject(deps);

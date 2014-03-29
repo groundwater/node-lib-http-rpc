@@ -1,33 +1,14 @@
-var util   = require('util');
-var stream = require('stream');
+var http = require('http');
+var future = require('lib-stream-future');
 
-util.inherits(Request, stream.Duplex);
-function Request(opts) {
-  stream.Duplex.call(this, opts);
-
-  var self = this;
-
-  this.buffer = [];
-  this.on('finish', function () {
-    self.push(null);
+function request(opts) {
+  var stream = future();
+  var req = http.request(opts, function (res) {
+    stream.setReadable(res);
   });
+  stream.setWritable(req);
+
+  return stream;
 }
 
-Request.prototype._write = function _write(chunk, encoding, done) {
-  this.buffer.push(chunk);
-  this.__drain();
-  done();
-};
-
-Request.prototype.__drain = function () {
-  while (this.buffer.length > 0) {
-    var x = this.buffer.shift();
-    this.push(x);
-  }
-};
-
-Request.prototype._read = function _read(size) {
-  this.__drain();
-};
-
-module.exports = Request;
+module.exports = request;
