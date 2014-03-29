@@ -36,9 +36,11 @@ RPC.prototype.getClient = function getClient(port, host) {
   var $ = this.$;
   var api = this.api;
 
-  return {
-    home: function (params, query) {
-      var opts = api.request('home', params, query);
+  var client = {};
+
+  Object.keys(this.iface).forEach(function (key) {
+    client[key] = function (params, query) {
+      var opts = api.request(key, params, query);
 
       opts.host = host;
       opts.port = port;
@@ -50,13 +52,15 @@ RPC.prototype.getClient = function getClient(port, host) {
       var req = $.NewRequest(opts);
 
       return req;
-    }
-  }
+    };
+  });
+
+  return client;
 };
 
 RPC.New = function NewRPC() {
   return new RPC(this);
-}
+};
 
 function populateApiFromInterface(api, iface) {
   Object.keys(iface).forEach(function (key) {
