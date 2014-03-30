@@ -1,13 +1,62 @@
-"use strict";
+'use strict';
 
-var util = require('util');
+var util   = require('util');
 var domain = require('domain');
 
+/*
+
+  Type and Methods
+
+*/
+
 function RPC($) {
-  this.$ = $;
-  this.api = null;
+  this.$     = $;
+  this.api   = null;
   this.iface = null;
 }
+
+RPC.prototype.getRouter = function getRouter(handlers) {
+  var rpc = this;
+
+  return boundRouter;
+
+  function boundRouter(req, res) {
+    return rpc.$.router(rpc, handlers, req, res);
+  }
+};
+
+RPC.prototype.getClient = function getClient(port, host) {
+  var self = this;
+  var $    = this.$;
+  var api  = this.api;
+
+  var client = {};
+
+  Object.keys(this.iface).forEach(function (key) {
+    client[key] = function (params, query) {
+      var opts = api.request(key, params, query);
+
+      opts.host = host;
+      opts.port = port;
+      opts.headers = {
+        'Transfer-Encoding': 'chunked',
+        'Content-Type': 'application/json',
+      };
+
+      var req = $.NewRequest(opts);
+
+      return req;
+    };
+  });
+
+  return client;
+};
+
+/*
+
+  Exceptions
+
+*/
 
 RPC.Error = function RpcError(code, message) {
   Error.call(this, message);
@@ -16,20 +65,41 @@ RPC.Error = function RpcError(code, message) {
 };
 util.inherits(RPC.Error, Error);
 
+/*
+
+  Constructors
+
+*/
+
+RPC.New = function NewRPC() {
+  return new RPC(this);
+};
+
+RPC.NewFromInterface = function NewFromInterface(iface) {
+  var rpc = this.New();
+  var api = this.API.New();
+
+  rpc.api = api;
+  rpc.iface = iface;
+
+  this.populateApiFromInterface(api, iface);
+
+  return rpc;
+};
+
+/*
+
+  Private Functions
+
+*/
+
 function router(rpc, handlers, req, res) {
-  var $ = rpc.$;
-  var api = rpc.api;
-
+  var $       = rpc.$;
+  var api     = rpc.api;
   var request = api.handle(req.method, req.url);
-  var dom = domain.create();
+  var dom     = domain.create();
 
-  dom.on('error', function (err) {
-    var statusCode = err.statusCode || 500;
-    res.statusCode = statusCode;
-    res.write(JSON.stringify(err));
-    res.end();
-  });
-
+  // the request handler doesn't exit
   if (!request) {
     res.statusCode = 404;
     res.end();
@@ -45,53 +115,20 @@ function router(rpc, handlers, req, res) {
   future.setWritable(res);
   future.setReadable(req);
 
-  res.setHeader('Transfer-Encoding', 'chunked');
-  res.setHeader("Content-Type", "application/json");
+  res.setHeader('Transfer-Encoding' , 'chunked');
+  res.setHeader('Content-Type'      , 'application/json');
+
+  dom.on('error', function (err) {
+    var statusCode = err.statusCode || 500;
+    res.statusCode = statusCode;
+    res.write(JSON.stringify(err));
+    res.end();
+  });
 
   dom.run(function () {
     handlers[handle](future, params, query);
   });
 }
-
-RPC.prototype.getRouter = function getRouter(handlers) {
-  var rpc = this;
-
-  return boundRouter;
-
-  function boundRouter(req, res) {
-    return rpc.$.router(rpc, handlers, req, res);
-  }
-};
-
-RPC.prototype.getClient = function getClient(port, host) {
-  var $ = this.$;
-  var api = this.api;
-
-  var client = {};
-
-  Object.keys(this.iface).forEach(function (key) {
-    client[key] = function (params, query) {
-      var opts = api.request(key, params, query);
-
-      opts.host = host;
-      opts.port = port;
-      opts.headers = {
-        "Transfer-Encoding": "chunked",
-        "Content-Type": "application/json",
-      };
-
-      var req = $.NewRequest(opts);
-
-      return req;
-    };
-  });
-
-  return client;
-};
-
-RPC.New = function NewRPC() {
-  return new RPC(this);
-};
 
 function populateApiFromInterface(api, iface) {
   Object.keys(iface).forEach(function (key) {
@@ -99,17 +136,11 @@ function populateApiFromInterface(api, iface) {
   });
 }
 
-RPC.NewFromInterface = function NewFromInterface(iface) {
-  var rpc = this.New();
-  var api = this.API.New();
+/*
 
-  rpc.api = api;
-  rpc.iface = iface;
+  Dependency Injection
 
-  this.populateApiFromInterface(api, iface);
-
-  return rpc;
-};
+*/
 
 function inject(deps) {
   return Object.create(RPC, deps);
@@ -134,7 +165,7 @@ function defaults() {
     },
     router: {
       value: router
-    }
+    },
   };
   return inject(deps);
 }
