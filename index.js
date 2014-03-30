@@ -116,9 +116,12 @@ function inject(deps) {
 }
 
 function defaults() {
+  var requestor = require('lib-stream-http')().New();
   var deps = {
     NewRequest : {
-      value: require('./request.js')
+      value: function (opts) {
+        return requestor.newDuplex(opts);
+      }
     },
     future: {
       value: require('lib-stream-future')

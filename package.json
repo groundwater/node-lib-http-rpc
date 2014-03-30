@@ -17,7 +17,8 @@
     "lib-stream-future": "0.0.2",
     "lib-stream-liquify": "0.0.0",
     "lib-stream-solidify": "0.0.0",
-    "lib-http-api": "0.0.0"
+    "lib-http-api": "0.0.0",
+    "lib-stream-http": "0.0.2"
   },
   "directories": {
     "test": "test"
