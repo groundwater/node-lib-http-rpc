@@ -26,31 +26,26 @@ RPC.prototype.getRouter = function getRouter(handlers) {
 };
 
 RPC.prototype.getClient = function getClient(port, host) {
-  var self = this;
-  var $    = this.$;
-  var api  = this.api;
+  var self   = this;
+  var $      = this.$;
+  var api    = this.api;
 
+  var rqstor = $.Requestor.NewFromServer(port, host);
   var client = {};
 
   Object.keys(this.iface).forEach(function (key) {
-    client[key] = function (params, query) {
-      var opts = api.request(key, params, query);
-
-      opts.host = host;
-      opts.port = port;
-      opts.headers = {
-        'Transfer-Encoding': 'chunked',
-        'Content-Type': 'application/json',
-      };
-
-      var req = $.NewRequest(opts);
-
-      return req;
-    };
+    client[key] = goGet.bind(null, api, key, rqstor);
   });
 
   return client;
 };
+
+function goGet(api, key, rqstor, params, query) {
+  var opts   = api.request(key, params, query);
+  var duplex = rqstor.newDuplex(opts);
+
+  return duplex;
+}
 
 /*
 
@@ -147,12 +142,9 @@ function inject(deps) {
 }
 
 function defaults() {
-  var requestor = require('lib-stream-http')().New();
   var deps = {
-    NewRequest : {
-      value: function (opts) {
-        return requestor.newDuplex(opts);
-      }
+    Requestor : {
+      value: require('lib-stream-http')()
     },
     future: {
       value: require('lib-stream-future')
