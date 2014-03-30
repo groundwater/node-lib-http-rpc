@@ -98,6 +98,21 @@ RPC.NewFromInterface = function NewFromInterface(iface) {
 
 */
 
+// a context provides all dynamic
+// and pluggable properties
+// of the rpc request
+function Context() {
+
+}
+
+Context.prototype.get = function get(property) {
+  return null;
+};
+
+Context.prototype.set = function set(property) {
+
+};
+
 function router(rpc, handlers, req, res) {
   var $       = rpc.$;
   var api     = rpc.api;
@@ -111,9 +126,9 @@ function router(rpc, handlers, req, res) {
     return;
   }
 
-  var handle = request.handle;
-
-  var params = {};
+  var context = new Context();
+  var handle  = request.handle;
+  var params  = {};
 
   var key;
   for(key in request.params) params[key] = request.params[key];
@@ -135,7 +150,7 @@ function router(rpc, handlers, req, res) {
   });
 
   dom.run(function () {
-    handlers[handle](future, params);
+    handlers[handle](future, params, context);
   });
 }
 
