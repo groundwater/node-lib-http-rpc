@@ -9,7 +9,7 @@ Build *both* the client and server from a common interface.
 
 ## Install
 
-```
+```bash
 npm install --save lib-http-rpc
 ```
 
@@ -55,8 +55,6 @@ Generate a router based on the common interface.
 var solidify = require('lib-stream-solidify');
 var liquify  = require('lib-stream-liquify');
 
-var Http404  = RPC.errors.Http404;
-
 function App() {
   this.users = {};
 }
@@ -65,7 +63,7 @@ App.prototype.getUser = function (stream, params) {
   var name = params.name;
   var user = this.users[name];
 
-  if (!user) throw new Http404('No User', name);
+  if (!user) throw new RPC.Error(404, 'user not found');
 
   stream.write(JSON.stringify(user));
 };
@@ -99,14 +97,7 @@ Generate a client based on the shared interface.
 
 ```javascript
 var client = rpc.createClient(8080, 'localhost');
-var stream = client.echo();
+var stream = client.getUser({name: 'bob'});
 
-// the writable end of the stream represents your http request body
-stream.pipe(process.stdout);
-
-// the readable end of the stream represents your http response body
-stream.write('HELLO WORLD');
-stream.end();
+stream.end().pipe(process.stdout);
 ```
-
-This should print `HELLO WORLD` when run from the terminal.
