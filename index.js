@@ -102,15 +102,15 @@ RPC.NewFromInterface = function NewFromInterface(iface) {
 // and pluggable properties
 // of the rpc request
 function Context() {
-
+  this._props = {};
 }
 
 Context.prototype.get = function get(property) {
-  return null;
+  return this._props[property];
 };
 
-Context.prototype.set = function set(property) {
-
+Context.prototype.set = function set(property, content) {
+  this._props[property] = content;
 };
 
 function router(rpc, handlers, req, res) {
