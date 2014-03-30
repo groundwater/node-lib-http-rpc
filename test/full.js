@@ -37,8 +37,8 @@ var router = rpc.getRouter({
   },
   list: function (stream, params, query) {
     var keys  = Object.keys(users);
-    var sort  = query.sort;
-    var limit = query.limit;
+    var sort  = params.sort;
+    var limit = params.limit;
 
     switch (sort) {
     case 'asc':
@@ -59,7 +59,7 @@ var client = rpc.getClient(8080);
 var server = http.createServer(router);
 server.listen(8080);
 
-var list = client.list({}, {limit: 1, sort: 'desc'});
+var list = client.list({limit: 1, sort: 'desc'});
 
 test(function (t) {
   list.end().pipe(solidify()).json(function (err, json) {

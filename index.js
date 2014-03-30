@@ -29,18 +29,28 @@ RPC.prototype.getClient = function getClient(port, host) {
   var self   = this;
   var $      = this.$;
   var api    = this.api;
+  var iface  = this.iface;
 
   var rqstor = $.Requestor.NewFromServer(port, host);
   var client = {};
 
-  Object.keys(this.iface).forEach(function (key) {
-    client[key] = goGet.bind(null, api, key, rqstor);
+  Object.keys(iface).forEach(function (key) {
+    client[key] = goGet.bind(iface[key], api, key, rqstor);
   });
 
   return client;
 };
 
-function goGet(api, key, rqstor, params, query) {
+function goGet(api, key, rqstor, params) {
+  /*jshint validthis: true */
+
+  var query  = {};
+  var opt;
+
+  for (opt in this.options) {
+    query[opt] = this.options[opt];
+  }
+
   var opts   = api.request(key, params, query);
   var duplex = rqstor.newDuplex(opts);
 
@@ -102,8 +112,12 @@ function router(rpc, handlers, req, res) {
   }
 
   var handle = request.handle;
-  var params = request.params;
-  var query  = request.query;
+
+  var params = {};
+
+  var key;
+  for(key in request.params) params[key] = request.params[key];
+  for(key in request.query)  params[key] = request.query[key];
 
   var future = $.future();
 
@@ -121,7 +135,7 @@ function router(rpc, handlers, req, res) {
   });
 
   dom.run(function () {
-    handlers[handle](future, params, query);
+    handlers[handle](future, params);
   });
 }
 

@@ -16,7 +16,7 @@ var RPC = require('../index.js')();
 var rpc = RPC.NewFromInterface(iface);
 
 var router = rpc.getRouter({
-  home: function(stream, params, query) {
+  home: function(stream, params, context) {
     stream.pipe(stream);
   }
 });
@@ -25,7 +25,7 @@ test("happy path", function (t) {
   t.plan(2);
 
   var srvr = http.createServer(router);
-  var home = rpc.getClient(8080).home({name: 'bob'}, {});
+  var home = rpc.getClient(8080).home({name: 'bob'});
   var done = solidify();
   var body = {
     name       : 'Kim Berley',
