@@ -49,7 +49,7 @@ var rpc = RPC.NewFromInterface(iface);
 
 ### Server
 
-Generate a router based on the common interface.
+Define your server application without any `http` dependencies.
 
 ```javascript
 var solidify = require('lib-stream-solidify');
@@ -63,6 +63,7 @@ App.prototype.getUser = function (stream, params) {
   var name = params.name;
   var user = this.users[name];
 
+  // this causes an HTTP 404 error
   if (!user) throw new RPC.Error(404, 'user not found');
 
   stream.write(JSON.stringify(user));
@@ -71,23 +72,35 @@ App.prototype.getUser = function (stream, params) {
 App.prototype.setUser = function (stream, params) {
   var name  = params.name;
   var users = this.users;
-  stream.pipe(solidify()).json(function (err, obj) {
+
+  // parse incoming stream as json
+  solidify(stream).json(function (err, obj) {
     if (err) throw err;
 
     users[name] = obj;
 
+    // send response
     stream.end();
   });
 };
 
-App.prototype.listUsers = function (stream, params, query) {
+App.prototype.listUsers = function (stream, params) {
+  var limit = params.limit;
+  var order = params.order;
   var users = Object.keys(this.users);
 
+  // sort and limit users
+  users = limitBy(limit, sortBy(order, users));
+
+  // turn user object into a stream
   liquify(users).pipe(stream);
 };
+```
 
-// generate a router that calls each handler, based on the route
-var router = rpc.getRouter(handlers);
+Generate a router from your application.
+
+```javascript
+var router = rpc.getRouter(new App());
 require('http').createServer(router).listen(8080);
 ```
 

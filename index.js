@@ -29,18 +29,28 @@ RPC.prototype.getClient = function getClient(port, host) {
   var self   = this;
   var $      = this.$;
   var api    = this.api;
+  var iface  = this.iface;
 
   var rqstor = $.Requestor.NewFromServer(port, host);
   var client = {};
 
-  Object.keys(this.iface).forEach(function (key) {
-    client[key] = goGet.bind(null, api, key, rqstor);
+  Object.keys(iface).forEach(function (key) {
+    client[key] = goGet.bind(iface[key], api, key, rqstor);
   });
 
   return client;
 };
 
-function goGet(api, key, rqstor, params, query) {
+function goGet(api, key, rqstor, params) {
+  /*jshint validthis: true */
+
+  var query  = {};
+  var opt;
+
+  for (opt in this.options) {
+    query[opt] = this.options[opt];
+  }
+
   var opts   = api.request(key, params, query);
   var duplex = rqstor.newDuplex(opts);
 
@@ -59,6 +69,20 @@ RPC.Error = function RpcError(code, message) {
   this.statusCode = code;
 };
 util.inherits(RPC.Error, Error);
+
+RPC.NotFoundError = function NotFoundError() {
+  Error.apply(this, arguments);
+
+  this.statusCode = 404;
+};
+util.inherits(RPC.NotFoundError, RPC.Error);
+
+RPC.BadRequestError = function BadRequestError() {
+  Error.apply(this, arguments);
+
+  this.statusCode = 400;
+};
+util.inherits(RPC.BadRequestError, RPC.Error);
 
 /*
 
@@ -88,6 +112,21 @@ RPC.NewFromInterface = function NewFromInterface(iface) {
 
 */
 
+// a context provides all dynamic
+// and pluggable properties
+// of the rpc request
+function Context() {
+  this._props = {};
+}
+
+Context.prototype.get = function get(property) {
+  return this._props[property];
+};
+
+Context.prototype.set = function set(property, content) {
+  this._props[property] = content;
+};
+
 function router(rpc, handlers, req, res) {
   var $       = rpc.$;
   var api     = rpc.api;
@@ -101,9 +140,13 @@ function router(rpc, handlers, req, res) {
     return;
   }
 
-  var handle = request.handle;
-  var params = request.params;
-  var query  = request.query;
+  var context = new Context();
+  var handle  = request.handle;
+  var params  = {};
+
+  var key;
+  for(key in request.params) params[key] = request.params[key];
+  for(key in request.query)  params[key] = request.query[key];
 
   var future = $.future();
 
@@ -121,7 +164,7 @@ function router(rpc, handlers, req, res) {
   });
 
   dom.run(function () {
-    handlers[handle](future, params, query);
+    handlers[handle](future, params, context);
   });
 }
 
