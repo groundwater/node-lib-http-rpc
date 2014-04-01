@@ -42,11 +42,13 @@ RPC.prototype.getClient = function getClient(port, host) {
   var api    = this.api;
   var iface  = this.iface;
 
-  var rqstor = $.Requestor.NewFromServer(port, host);
-  var client = {};
+  // create http bridge for RPC
+  var requestor = $.Requestor.NewFromServer(port, host);
 
+  // add RPC methods to client
+  var client = {};
   Object.keys(iface).forEach(function (key) {
-    client[key] = goGet.bind(iface[key], api, key, rqstor);
+    client[key] = goGet.bind(iface[key], api, key, requestor);
   });
 
   return client;
@@ -116,18 +118,21 @@ RPC.NewFromInterface = function NewFromInterface(iface) {
 
 */
 
-function goGet(api, key, rqstor, params) {
+function goGet(api, key, requestor, params) {
   /*jshint validthis: true */
 
   var query  = {};
   var opt;
 
+  // extract query options
   for (opt in this.options) {
     query[opt] = this.options[opt];
   }
 
+  // unexpected params are ignored,
+  // so we don't need to filter the query options from the params object
   var opts   = api.request(key, params, query);
-  var duplex = rqstor.newDuplex(opts);
+  var duplex = requestor.newDuplex(opts);
 
   return duplex;
 }
@@ -138,7 +143,8 @@ function populateApiFromInterface(api, iface) {
   });
 }
 
-
+// make http router
+// use Function.bind to create a router given an rpc, and set of handlers
 function router(rpc, handlers, req, res) {
   var $       = rpc.$;
   var api     = rpc.api;
@@ -146,16 +152,18 @@ function router(rpc, handlers, req, res) {
   var dom     = domain.create();
 
   // the request handler doesn't exit
+  // TODO: hoist response logic
   if (!request) {
     res.statusCode = 404;
     res.end();
     return;
   }
 
-  var context = new Context();
+  var context = new Context(); // TODO: hoist to own module
   var handle  = request.handle;
   var params  = {};
 
+  // TODO: hoist logic to 'union' module
   var key;
   for(key in request.params) params[key] = request.params[key];
   for(key in request.query)  params[key] = request.query[key];
@@ -165,20 +173,23 @@ function router(rpc, handlers, req, res) {
   future.setWritable(res);
   future.setReadable(req);
 
+  // TODO: extract request making logic
   res.setHeader('Transfer-Encoding' , 'chunked');
   res.setHeader('Content-Type'      , 'application/json');
 
   dom.on('error', function (err) {
     var statusCode = err.statusCode;
 
-    //
+    // only catch known errors, re-throw unexpected errors
     if (!statusCode) throw err;
 
+    // TODO: hoist response logic
     res.statusCode = statusCode;
     res.write(JSON.stringify(err));
     res.end();
   });
 
+  // domain should handle all route errors
   dom.run(function () {
     handlers[handle](future, params, context);
   });
