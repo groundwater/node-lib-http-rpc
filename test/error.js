@@ -21,7 +21,7 @@ test("catch throws as 500 errors", function (t) {
 
   var router = rpc.getRouter({
     home: function(stream, params, query) {
-      throw new Error();
+      throw new RPC.Error(500);
     }
   });
   var srvr = http.createServer(router);

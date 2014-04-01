@@ -157,7 +157,11 @@ function router(rpc, handlers, req, res) {
   res.setHeader('Content-Type'      , 'application/json');
 
   dom.on('error', function (err) {
-    var statusCode = err.statusCode || 500;
+    var statusCode = err.statusCode;
+
+    //
+    if (!statusCode) throw err;
+
     res.statusCode = statusCode;
     res.write(JSON.stringify(err));
     res.end();
