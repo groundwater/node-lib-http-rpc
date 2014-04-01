@@ -5,15 +5,26 @@ var domain = require('domain');
 
 /*
 
-  Type and Methods
+  Data Structures
 
 */
+
+// a context provides all dynamic and pluggable properties of the rpc request
+function Context() {
+  this._props = {};
+}
 
 function RPC($) {
   this.$     = $;
   this.api   = null;
   this.iface = null;
 }
+
+/*
+
+  Public Methods
+
+*/
 
 RPC.prototype.getRouter = function getRouter(handlers) {
   var rpc = this;
@@ -41,21 +52,14 @@ RPC.prototype.getClient = function getClient(port, host) {
   return client;
 };
 
-function goGet(api, key, rqstor, params) {
-  /*jshint validthis: true */
 
-  var query  = {};
-  var opt;
+Context.prototype.get = function get(property) {
+  return this._props[property];
+};
 
-  for (opt in this.options) {
-    query[opt] = this.options[opt];
-  }
-
-  var opts   = api.request(key, params, query);
-  var duplex = rqstor.newDuplex(opts);
-
-  return duplex;
-}
+Context.prototype.set = function set(property, content) {
+  this._props[property] = content;
+};
 
 /*
 
@@ -112,20 +116,28 @@ RPC.NewFromInterface = function NewFromInterface(iface) {
 
 */
 
-// a context provides all dynamic
-// and pluggable properties
-// of the rpc request
-function Context() {
-  this._props = {};
+function goGet(api, key, rqstor, params) {
+  /*jshint validthis: true */
+
+  var query  = {};
+  var opt;
+
+  for (opt in this.options) {
+    query[opt] = this.options[opt];
+  }
+
+  var opts   = api.request(key, params, query);
+  var duplex = rqstor.newDuplex(opts);
+
+  return duplex;
 }
 
-Context.prototype.get = function get(property) {
-  return this._props[property];
-};
+function populateApiFromInterface(api, iface) {
+  Object.keys(iface).forEach(function (key) {
+    api.add(key, iface[key]);
+  });
+}
 
-Context.prototype.set = function set(property, content) {
-  this._props[property] = content;
-};
 
 function router(rpc, handlers, req, res) {
   var $       = rpc.$;
@@ -169,12 +181,6 @@ function router(rpc, handlers, req, res) {
 
   dom.run(function () {
     handlers[handle](future, params, context);
-  });
-}
-
-function populateApiFromInterface(api, iface) {
-  Object.keys(iface).forEach(function (key) {
-    api.add(key, iface[key]);
   });
 }
 
