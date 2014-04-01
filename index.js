@@ -189,7 +189,7 @@ function inject(deps) {
 }
 
 function defaults() {
-  var deps = {
+  return {
     Requestor : {
       value: require('lib-stream-http')()
     },
@@ -206,11 +206,8 @@ function defaults() {
       value: router
     },
   };
-  return inject(deps);
 }
 
 module.exports = function INIT(deps) {
-  if (typeof deps === 'object') return inject(deps);
-  else if (deps === undefined)  return defaults();
-  else                          throw new Error('injection error');
+  return inject(deps || defaults());
 };
