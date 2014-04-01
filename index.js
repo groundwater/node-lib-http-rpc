@@ -70,6 +70,20 @@ RPC.Error = function RpcError(code, message) {
 };
 util.inherits(RPC.Error, Error);
 
+RPC.NotFoundError = function NotFoundError() {
+  Error.apply(this, arguments);
+
+  this.statusCode = 404;
+};
+util.inherits(RPC.NotFoundError, RPC.Error);
+
+RPC.BadRequestError = function BadRequestError() {
+  Error.apply(this, arguments);
+
+  this.statusCode = 400;
+};
+util.inherits(RPC.BadRequestError, RPC.Error);
+
 /*
 
   Constructors
