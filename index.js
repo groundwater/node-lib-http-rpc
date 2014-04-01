@@ -29,11 +29,7 @@ function RPC($) {
 RPC.prototype.getRouter = function getRouter(handlers) {
   var rpc = this;
 
-  return boundRouter;
-
-  function boundRouter(req, res) {
-    return rpc.$.router(rpc, handlers, req, res);
-  }
+  return rpc.$.router.bind(null, rpc, handlers);
 };
 
 RPC.prototype.getClient = function getClient(port, host) {
