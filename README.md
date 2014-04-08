@@ -109,7 +109,7 @@ require('http').createServer(router).listen(8080);
 Generate a client based on the shared interface.
 
 ```javascript
-var client = rpc.createClient(8080, 'localhost');
+var client = rpc.getClient(8080, 'localhost');
 var stream = client.getUser({name: 'bob'});
 
 stream.end().pipe(process.stdout);
