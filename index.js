@@ -114,6 +114,7 @@ RPC.NewFromInterface = function NewFromInterface(iface) {
 
 */
 
+// bound method that accepts a `params` object and returns a duplex stream
 function goGet(api, key, requestor, params) {
   /*jshint validthis: true */
 
@@ -133,6 +134,7 @@ function goGet(api, key, requestor, params) {
   return duplex;
 }
 
+// fill api from interface
 function populateApiFromInterface(api, iface) {
   Object.keys(iface).forEach(function (key) {
     api.add(key, iface[key]);
@@ -203,6 +205,9 @@ function inject(deps) {
 
 function defaults() {
   return {
+
+    // dependency injections
+    
     Requestor : {
       value: require('lib-stream-http')()
     },
@@ -212,6 +217,9 @@ function defaults() {
     API : {
       value: require('lib-http-api')()
     },
+
+    // private method injections
+
     populateApiFromInterface: {
       value: populateApiFromInterface
     },
