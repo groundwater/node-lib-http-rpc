@@ -1,6 +1,6 @@
 {
   "name": "lib-http-rpc",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "define client/server http rpc",
   "main": "index.js",
   "scripts": {
