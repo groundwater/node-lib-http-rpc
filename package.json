@@ -15,9 +15,9 @@
   },
   "dependencies": {
     "lib-stream-future": "^0.1.0",
-    "lib-stream-liquify": "0.0.0",
-    "lib-stream-solidify": "0.0.0",
-    "lib-http-api": "0.0.0",
+    "lib-stream-liquify": "0.0.1",
+    "lib-stream-solidify": "0.0.1",
+    "lib-http-api": "0.0.1",
     "lib-stream-http": "0.0.3"
   },
   "directories": {
